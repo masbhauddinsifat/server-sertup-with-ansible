@@ -1,0 +1,72 @@
+---
+- name: Install PostgreSQL and configure pg_hba
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install PostgreSQL
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+        state: present
+
+    - name: Get PostgreSQL version
+      shell: pg_config --version | awk '{print $2}' | cut -d. -f1
+      changed_when: false
+      register: pgsql_version
+
+    - name: Modify pg_hba.conf
+      become: true
+      replace:
+        path: "/etc/postgresql/{{ pgsql_version.stdout }}/main/pg_hba.conf"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - {
+            regexp: '^local\s+all\s+all\s+peer$',
+            replace: "local   all             all                                     md5",
+          }
+        - {
+            regexp: '^host\s+all\s+all\s+127\.0\.0\.1\/32\s+scram-sha-256$',
+            replace: "host    all             all             0.0.0.0/0               md5",
+          }
+        - {
+            regexp: '^host\s+all\s+all\s+::1\/128\s+scram-sha-256$',
+            replace: "host    all             all             ::/0                    scram-sha-256",
+          }
+
+    - name: Update Postgres.conf listen_addresses
+      replace:
+        path: /etc/postgresql/{{ pgsql_version.stdout }}/main/postgresql.conf
+        regexp: '^#?listen_addresses\s*=\s*.+$'
+        replace: "listen_addresses = '*'"
+      become: true
+
+    - name: Enable postgresql service
+      become: yes
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Checking postgresql Started and Enabled
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Restart postgresql service
+      become: yes
+      systemd:
+        name: postgresql
+        state: restarted
+
+  handlers:
+    - name: Restart PostgreSQL
+      service:
+        name: postgresql
+        state: restarted

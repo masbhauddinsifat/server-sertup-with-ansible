@@ -1,0 +1,30 @@
+---
+- name: Install Node.js and npm
+  hosts: servers
+  become: yes
+  vars:
+    nodejs_version: "18.13.0" # Adjust the version as per your requirement
+
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+      become: yes
+
+    - name: Install Node.js using apt
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Install NPM using apt
+      apt:
+        name: npm
+        state: present
+
+    - name: Install n package globally
+      npm:
+        name: n
+        global: yes
+
+    - name: Update Node.js to the latest LTS version
+      command: n lts

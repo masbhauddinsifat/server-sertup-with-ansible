@@ -1,0 +1,47 @@
+---
+- name: Install Redis
+  hosts: servers
+  become: true
+  tasks:
+    - name: Update apt cache
+      become: true
+      apt:
+        update_cache: yes
+
+    - name: Upgrade packages
+      apt:
+        upgrade: yes
+        autoremove: yes
+
+    - name: Install required packages
+      become: true
+      apt:
+        name:
+          - redis-server
+        state: present
+
+    - name: Redis Supervise as Systemd
+      lineinfile:
+        path: /etc/redis/redis.conf
+        state: present
+        regexp: "^#?supervised"
+        line: "supervised systemd"
+
+    - name: Enable redis service
+      become: yes
+      systemd:
+        name: redis-server
+        state: started
+        enabled: yes
+
+    - name: Checking redis Started and Enabled
+      service:
+        name: redis-server
+        state: started
+        enabled: yes
+
+    - name: Restart Redis service
+      become: yes
+      systemd:
+        name: redis.service
+        state: restarted
